@@ -52,6 +52,16 @@ class CreateMessage {
   Map<String?, String?> httpHeaders;
 }
 
+class UpdateMessage {
+  UpdateMessage(this.textureId, {required this.httpHeaders});
+  int textureId;
+  String? asset;
+  String? uri;
+  String? packageName;
+  String? formatHint;
+  Map<String?, String?> httpHeaders;
+}
+
 class MixWithOthersMessage {
   MixWithOthersMessage(this.mixWithOthers);
   bool mixWithOthers;
@@ -63,6 +73,8 @@ abstract class AVFoundationVideoPlayerApi {
   void initialize();
   @ObjCSelector('create:')
   TextureMessage create(CreateMessage msg);
+  @ObjCSelector('update:')
+  void update(UpdateMessage msg);
   @ObjCSelector('dispose:')
   void dispose(TextureMessage msg);
   @ObjCSelector('setLooping:')
