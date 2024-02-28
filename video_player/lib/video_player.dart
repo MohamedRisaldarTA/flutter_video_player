@@ -561,7 +561,6 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   }
 
   Future<void> update() async {
-    _creatingCompleter = Completer<void>();
 
     late DataSource dataSourceDescription;
     switch (dataSourceType) {
@@ -595,72 +594,6 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     }
 
     await _videoPlayerPlatform.update(_textureId, dataSourceDescription);
-    _creatingCompleter!.complete(null);
-    final Completer<void> initializingCompleter = Completer<void>();
-
-    void eventListener(VideoEvent event) {
-      if (_isDisposed) {
-        return;
-      }
-
-      switch (event.eventType) {
-        case VideoEventType.initialized:
-          value = value.copyWith(
-            duration: event.duration,
-            size: event.size,
-            rotationCorrection: event.rotationCorrection,
-            isInitialized: event.duration != null,
-            errorDescription: null,
-            isCompleted: false,
-          );
-          break;
-          initializingCompleter.complete(null);
-          _applyLooping();
-          _applyVolume();
-          _applyPlayPause();
-        case VideoEventType.completed:
-          // In this case we need to stop _timer, set isPlaying=false, and
-          // position=value.duration. Instead of setting the values directly,
-          // we use pause() and seekTo() to ensure the platform stops playing
-          // and seeks to the last frame of the video.
-          pause().then((void pauseResult) => seekTo(value.duration));
-          value = value.copyWith(isCompleted: true);
-          break;
-        case VideoEventType.bufferingUpdate:
-          value = value.copyWith(buffered: event.buffered);
-          break;
-        case VideoEventType.bufferingStart:
-          value = value.copyWith(isBuffering: true);
-          break;
-        case VideoEventType.bufferingEnd:
-          value = value.copyWith(isBuffering: false);
-          break;
-        case VideoEventType.isPlayingStateUpdate:
-          if (event.isPlaying ?? false) {
-            value =
-                value.copyWith(isPlaying: event.isPlaying, isCompleted: false);
-          } else {
-            value = value.copyWith(isPlaying: event.isPlaying);
-          }
-          break;
-        case VideoEventType.unknown:
-          break;
-      }
-    }
-
-    void errorListener(Object obj) {
-      final PlatformException e = obj as PlatformException;
-      value = VideoPlayerValue.erroneous(e.message!);
-      _timer?.cancel();
-      if (!initializingCompleter.isCompleted) {
-        initializingCompleter.completeError(obj);
-      }
-    }
-
-    _eventSubscription = _videoPlayerPlatform
-        .videoEventsFor(_textureId)
-        .listen(eventListener, onError: errorListener);
-    return initializingCompleter.future;
   }
 
   @override
