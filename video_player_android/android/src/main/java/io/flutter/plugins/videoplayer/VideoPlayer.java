@@ -259,6 +259,26 @@ final class VideoPlayer {
         !isMixMode);
   }
 
+  void update(
+          Context context,
+          String dataSource,
+          String formatHint,
+          @NonNull Map<String, String> httpHeaders) {
+
+    Uri uri = Uri.parse(dataSource);
+
+    buildHttpDataSourceFactory(httpHeaders);
+    DataSource.Factory dataSourceFactory =
+            new DefaultDataSource.Factory(context, httpDataSourceFactory);
+
+    MediaSource mediaSource = buildMediaSource(uri, dataSourceFactory, formatHint);
+
+    exoPlayer.stop();
+    exoPlayer.setMediaSource(mediaSource);
+    exoPlayer.prepare();
+    exoPlayer.setPlayWhenReady(true);
+  }
+
   void play() {
     exoPlayer.setPlayWhenReady(true);
   }
