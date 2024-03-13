@@ -349,26 +349,26 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
 
   /// The URI to the video file. This will be in different formats depending on
   /// the [DataSourceType] of the original video.
-  final String dataSource;
+  String dataSource;
 
   /// HTTP headers used for the request to the [dataSource].
   /// Only for [VideoPlayerController.network].
   /// Always empty for other video types.
-  final Map<String, String> httpHeaders;
+  Map<String, String> httpHeaders;
 
   /// **Android only**. Will override the platform's generic file format
   /// detection with whatever is set here.
-  final VideoFormat? formatHint;
+  VideoFormat? formatHint;
 
   /// Describes the type of data source this [VideoPlayerController]
   /// is constructed with.
-  final DataSourceType dataSourceType;
+  DataSourceType dataSourceType;
 
   /// Provide additional configuration options (optional). Like setting the audio mode to mix
-  final VideoPlayerOptions? videoPlayerOptions;
+  VideoPlayerOptions? videoPlayerOptions;
 
   /// Only set for [asset] videos. The package that the asset was loaded from.
-  final String? package;
+  String? package;
 
   Future<ClosedCaptionFile>? _closedCaptionFileFuture;
   ClosedCaptionFile? _closedCaptionFile;
@@ -406,6 +406,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
           asset: dataSource,
           package: package,
         );
+        break;
       case DataSourceType.network:
         dataSourceDescription = DataSource(
           sourceType: DataSourceType.network,
@@ -413,12 +414,14 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
           formatHint: formatHint,
           httpHeaders: httpHeaders,
         );
+        break;
       case DataSourceType.file:
         dataSourceDescription = DataSource(
           sourceType: DataSourceType.file,
           uri: dataSource,
           httpHeaders: httpHeaders,
         );
+        break;
       case DataSourceType.contentUri:
         dataSourceDescription = DataSource(
           sourceType: DataSourceType.contentUri,
@@ -455,6 +458,20 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
           _applyLooping();
           _applyVolume();
           _applyPlayPause();
+          break;
+        case VideoEventType.updated:
+          value = value.copyWith(
+            duration: event.duration,
+            size: event.size,
+            rotationCorrection: event.rotationCorrection,
+            isInitialized: event.duration != null,
+            errorDescription: null,
+            isCompleted: false,
+          );
+          _applyLooping();
+          _applyVolume();
+          _applyPlayPause();
+          break;
         case VideoEventType.completed:
           // In this case we need to stop _timer, set isPlaying=false, and
           // position=value.duration. Instead of setting the values directly,
@@ -462,12 +479,16 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
           // and seeks to the last frame of the video.
           pause().then((void pauseResult) => seekTo(value.duration));
           value = value.copyWith(isCompleted: true);
+          break;
         case VideoEventType.bufferingUpdate:
           value = value.copyWith(buffered: event.buffered);
+          break;
         case VideoEventType.bufferingStart:
           value = value.copyWith(isBuffering: true);
+          break;
         case VideoEventType.bufferingEnd:
           value = value.copyWith(isBuffering: false);
+          break;
         case VideoEventType.isPlayingStateUpdate:
           if (event.isPlaying ?? false) {
             value =
@@ -475,6 +496,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
           } else {
             value = value.copyWith(isPlaying: event.isPlaying);
           }
+          break;
         case VideoEventType.unknown:
           break;
       }
@@ -497,6 +519,93 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
         .videoEventsFor(_textureId)
         .listen(eventListener, onError: errorListener);
     return initializingCompleter.future;
+  }
+
+  Future<void> updateUri(Uri contentUri,
+      {Future<ClosedCaptionFile>? closedCaptionFile}) async {
+    _closedCaptionFileFuture = closedCaptionFile;
+    dataSource = contentUri.toString();
+    await update();
+  }
+
+  Future<void> updateAsset(String dataSource,
+      {String? package, Future<ClosedCaptionFile>? closedCaptionFile}) async {
+    this.dataSource = dataSource;
+    this.package = package;
+    _closedCaptionFileFuture = closedCaptionFile;
+    await update();
+  }
+
+  Future<void> updateNetwork(
+    String dataSource, {
+    VideoFormat? formatHint,
+    Future<ClosedCaptionFile>? closedCaptionFile,
+    Map<String, String> httpHeaders = const <String, String>{},
+  }) async {
+    this.dataSource = dataSource;
+    this.formatHint = formatHint;
+    this.httpHeaders = httpHeaders;
+    _closedCaptionFileFuture = closedCaptionFile;
+    await update();
+  }
+
+  Future<void> updateNetworkUrl(
+    Uri url, {
+    VideoFormat? formatHint,
+    Future<ClosedCaptionFile>? closedCaptionFile,
+    Map<String, String> httpHeaders = const <String, String>{},
+  }) async {
+    this.dataSource = url.toString();
+    this.formatHint = formatHint;
+    this.httpHeaders = httpHeaders;
+    _closedCaptionFileFuture = closedCaptionFile;
+    await update();
+  }
+
+  Future<void> updateFile(
+    File file, {
+    Future<ClosedCaptionFile>? closedCaptionFile,
+    Map<String, String> httpHeaders = const <String, String>{},
+  }) async {
+    this.dataSource = Uri.file(file.absolute.path).toString();
+    this.httpHeaders = httpHeaders;
+    _closedCaptionFileFuture = closedCaptionFile;
+    await update();
+  }
+
+  Future<void> update() async {
+    late DataSource dataSourceDescription;
+    switch (dataSourceType) {
+      case DataSourceType.asset:
+        dataSourceDescription = DataSource(
+          sourceType: DataSourceType.asset,
+          asset: dataSource,
+          package: package,
+        );
+        break;
+      case DataSourceType.network:
+        dataSourceDescription = DataSource(
+          sourceType: DataSourceType.network,
+          uri: dataSource,
+          formatHint: formatHint,
+          httpHeaders: httpHeaders,
+        );
+        break;
+      case DataSourceType.file:
+        dataSourceDescription = DataSource(
+          sourceType: DataSourceType.file,
+          uri: dataSource,
+          httpHeaders: httpHeaders,
+        );
+        break;
+      case DataSourceType.contentUri:
+        dataSourceDescription = DataSource(
+          sourceType: DataSourceType.contentUri,
+          uri: dataSource,
+        );
+    }
+
+    await _videoPlayerPlatform.update(_textureId, dataSourceDescription);
   }
 
   @override

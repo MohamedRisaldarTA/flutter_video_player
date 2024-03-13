@@ -41,15 +41,19 @@ class AndroidVideoPlayer extends VideoPlayerPlatform {
       case DataSourceType.asset:
         asset = dataSource.asset;
         packageName = dataSource.package;
+        break;
       case DataSourceType.network:
         uri = dataSource.uri;
         formatHint = _videoFormatStringMap[dataSource.formatHint];
         httpHeaders = dataSource.httpHeaders;
+        break;
       case DataSourceType.file:
         uri = dataSource.uri;
         httpHeaders = dataSource.httpHeaders;
+        break;
       case DataSourceType.contentUri:
         uri = dataSource.uri;
+        break;
     }
     final CreateMessage message = CreateMessage(
       asset: asset,
@@ -61,6 +65,41 @@ class AndroidVideoPlayer extends VideoPlayerPlatform {
 
     final TextureMessage response = await _api.create(message);
     return response.textureId;
+  }
+
+  @override
+  Future<void> update(int textureId, DataSource dataSource) async {
+    String? asset;
+    String? packageName;
+    String? uri;
+    String? formatHint;
+    Map<String, String> httpHeaders = <String, String>{};
+    switch (dataSource.sourceType) {
+      case DataSourceType.asset:
+        asset = dataSource.asset;
+        packageName = dataSource.package;
+        break;
+      case DataSourceType.network:
+        uri = dataSource.uri;
+        formatHint = _videoFormatStringMap[dataSource.formatHint];
+        httpHeaders = dataSource.httpHeaders;
+        break;
+      case DataSourceType.file:
+        uri = dataSource.uri;
+        break;
+      case DataSourceType.contentUri:
+        uri = dataSource.uri;
+        break;
+    }
+    final UpdateMessage message = UpdateMessage(
+      textureId: textureId,
+      asset: asset,
+      packageName: packageName,
+      uri: uri,
+      httpHeaders: httpHeaders,
+      formatHint: formatHint,
+    );
+    await _api.update(message);
   }
 
   @override
@@ -124,6 +163,14 @@ class AndroidVideoPlayer extends VideoPlayerPlatform {
         case 'initialized':
           return VideoEvent(
             eventType: VideoEventType.initialized,
+            duration: Duration(milliseconds: map['duration'] as int),
+            size: Size((map['width'] as num?)?.toDouble() ?? 0.0,
+                (map['height'] as num?)?.toDouble() ?? 0.0),
+            rotationCorrection: map['rotationCorrection'] as int? ?? 0,
+          );
+        case 'updated':
+          return VideoEvent(
+            eventType: VideoEventType.updated,
             duration: Duration(milliseconds: map['duration'] as int),
             size: Size((map['width'] as num?)?.toDouble() ?? 0.0,
                 (map['height'] as num?)?.toDouble() ?? 0.0),
