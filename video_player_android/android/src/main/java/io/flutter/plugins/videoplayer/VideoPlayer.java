@@ -212,6 +212,8 @@ final class VideoPlayer {
               if (!isInitialized) {
                 isInitialized = true;
                 sendInitialized();
+              } else {
+                sendUpdated();
               }
             } else if (playbackState == Player.STATE_ENDED) {
               Map<String, Object> event = new HashMap<>();
@@ -344,6 +346,36 @@ final class VideoPlayer {
 
       eventSink.success(event);
     }
+  }
+
+  void sendUpdated() {
+    Map<String, Object> event = new HashMap<>();
+    event.put("event", "updated");
+    event.put("duration", exoPlayer.getDuration());
+
+    if (exoPlayer.getVideoFormat() != null) {
+      Format videoFormat = exoPlayer.getVideoFormat();
+      int width = videoFormat.width;
+      int height = videoFormat.height;
+      int rotationDegrees = videoFormat.rotationDegrees;
+      // Switch the width/height if video was taken in portrait mode
+      if (rotationDegrees == 90 || rotationDegrees == 270) {
+        width = exoPlayer.getVideoFormat().height;
+        height = exoPlayer.getVideoFormat().width;
+      }
+      event.put("width", width);
+      event.put("height", height);
+
+      // Rotating the video with ExoPlayer does not seem to be possible with a Surface,
+      // so inform the Flutter code that the widget needs to be rotated to prevent
+      // upside-down playback for videos with rotationDegrees of 180 (other orientations work
+      // correctly without correction).
+      if (rotationDegrees == 180) {
+        event.put("rotationCorrection", rotationDegrees);
+      }
+    }
+
+    eventSink.success(event);
   }
 
   void dispose() {
