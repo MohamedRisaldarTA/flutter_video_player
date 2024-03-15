@@ -99,6 +99,7 @@
 @property(nonatomic, readonly) BOOL isPlaying;
 @property(nonatomic) BOOL isLooping;
 @property(nonatomic, readonly) BOOL isInitialized;
+@property(nonatomic, readonly) BOOL isUpdated;
 // The updater that drives callbacks to the engine to indicate that a new frame is ready.
 @property(nonatomic) FVPFrameUpdater *frameUpdater;
 // The display link that drives frameUpdater.
@@ -387,6 +388,7 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
                    avFactory:(id<FVPAVFactory>)avFactory
                    registrar:(NSObject<FlutterPluginRegistrar> *)registrar {
     
+    _isUpdated = NO;
     _registrar = registrar;
     
     AVAsset *asset = [item asset];
@@ -514,7 +516,7 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 }
 
 - (void)setupEventSinkIfReadyToPlay {
-  if (_eventSink && !_isInitialized) {
+  if (_eventSink && (!_isInitialized || !_isUpdated)) {
     AVPlayerItem *currentItem = self.player.currentItem;
     CGSize size = currentItem.presentationSize;
     CGFloat width = size.width;
@@ -552,14 +554,25 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
     if (duration == 0) {
       return;
     }
-
-    _isInitialized = YES;
-    _eventSink(@{
-      @"event" : @"initialized",
-      @"duration" : @(duration),
-      @"width" : @(width),
-      @"height" : @(height)
-    });
+      
+    if(!_isInitialized) {
+      _isInitialized = YES;
+      _isUpdated = YES;
+      _eventSink(@{
+        @"event" : @"initialized",
+        @"duration" : @(duration),
+        @"width" : @(width),
+        @"height" : @(height)
+      });
+    } else if(!_isUpdated) {
+        _isUpdated = YES;
+        _eventSink(@{
+          @"event" : @"updated",
+          @"duration" : @(duration),
+          @"width" : @(width),
+          @"height" : @(height)
+        });
+    }
   }
 }
 

@@ -459,6 +459,19 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
           _applyVolume();
           _applyPlayPause();
           break;
+        case VideoEventType.updated:
+          value = value.copyWith(
+            duration: event.duration,
+            size: event.size,
+            rotationCorrection: event.rotationCorrection,
+            isInitialized: event.duration != null,
+            errorDescription: null,
+            isCompleted: false,
+          );
+          _applyLooping();
+          _applyVolume();
+          _applyPlayPause();
+          break;
         case VideoEventType.completed:
           // In this case we need to stop _timer, set isPlaying=false, and
           // position=value.duration. Instead of setting the values directly,
